@@ -4,7 +4,7 @@ import openai
 # -----------------------
 # CONFIGURATION
 # -----------------------
-openai.api_key = "your_openai_api_key"  # 👈 Replace this
+openai.api_key = "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"  # 👈 Replace this
 
 # -----------------------
 # OPENAI FUNCTION
