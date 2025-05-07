@@ -47,6 +47,7 @@ def search_track(song, artist, token):
         return items[0]
     else:
         return None
+st.write("Spotify raw response:", r.text)
 
 # -----------------------
 # GET RECOMMENDATIONS
