@@ -51,34 +51,28 @@ def search_track(song, artist, token):
 
 # -----------------------
 # GET RECOMMENDATIONS
-# -----------------------
-def get_recommendations(seed_track_id, token):
-    url = "https://api.spotify.com/v1/recommendations"
-    headers = {
-        "Authorization": f"Bearer {token}"
-    }
-    params = {
-        "seed_tracks": seed_track_id,
-        "limit": 5,
-        "min_popularity": 10,
-        "max_popularity": 40
-    }
+# ---recommendations = get_recommendations(track['id'], token)
 
-    try:
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
-        st.code(response.text, language="json")  # TEMPORARY DEBUGGING
-        return response.json().get("tracks", [])
+if not recommendations:
+    st.warning("😕 Spotify couldn't find similar obscure songs for that track. Try a different one or check spelling.")
+else:
+    st.write("### 🔍 You might like:")
+    for rec in recommendations:
+        name = rec['name']
+        artist_name = rec['artists'][0]['name']
+        link = rec['external_urls']['spotify']
+        img = rec['album']['images'][0]['url'] if rec['album']['images'] else None
 
-    except requests.exceptions.HTTPError as e:
-        st.error(f"HTTP error from Spotify: {e}")
-        st.stop()
-    except requests.exceptions.RequestException as e:
-        st.error(f"Network error from Spotify: {e}")
-        st.stop()
-    except Exception as e:
-        st.error(f"Unexpected error: {e}")
-        st.stop()
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            if img:
+                st.image(img, width=100)
+        with col2:
+            st.markdown(f"**{name}** by *{artist_name}*")
+            st.markdown(f"[▶️ Listen on Spotify]({link})")
+
+        st.markdown("---")
+
 
 # -----------------------
 # STREAMLIT APP
