@@ -1,11 +1,11 @@
 import streamlit as st
+import openai
 import os
-from openai import OpenAI
 
 # -----------------------
 # LOAD API KEY FROM ENV
 # -----------------------
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # -----------------------
 # FUNCTION TO GET RECS
@@ -24,7 +24,7 @@ def get_song_recommendations(song, artist):
     """
 
     try:
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You're a music recommendation engine who loves obscure tracks."},
