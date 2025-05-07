@@ -5,8 +5,8 @@ import base64
 # -----------------------
 # CONFIGURATION
 # -----------------------
-CLIENT_ID = "2fd09035ff5548a09b2fb8150648a824"        # 👈 Replace this
-CLIENT_SECRET = "8450f8417aff4816bef7c3c8cd129fa4"  # 👈 Replace this
+CLIENT_ID = "your_spotify_client_id"        # 👈 Replace this
+CLIENT_SECRET = "your_spotify_client_secret"  # 👈 Replace this
 
 # -----------------------
 # AUTHENTICATE WITH SPOTIFY
@@ -26,7 +26,7 @@ def get_spotify_token():
         r = requests.post(auth_url, headers=headers, data=data)
         r.raise_for_status()
         return r.json().get("access_token")
-    except Exception as e:
+    except Exception:
         st.error("❌ Failed to get Spotify token. Check your Client ID and Secret.")
         st.stop()
 
@@ -36,14 +36,8 @@ def get_spotify_token():
 def search_track(song, artist, token):
     query = f"track:{song} artist:{artist}"
     url = "https://api.spotify.com/v1/search"
-    headers = {
-        "Authorization": f"Bearer {token}"
-    }
-    params = {
-        "q": query,
-        "type": "track",
-        "limit": 1
-    }
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {"q": query, "type": "track", "limit": 1}
 
     try:
         r = requests.get(url, headers=headers, params=params)
@@ -76,21 +70,17 @@ def get_artist_genres(artist_id, token):
         return []
 
 # -----------------------
-# GET SMART RECOMMENDATIONS
+# GET SMART RECOMMENDATIONS WITH FALLBACK
 # -----------------------
-def get_recommendations(seed_track_id, seed_artist_id, token):
+def get_recommendations(seed_artist_id, genre_seed, token, min_popularity, max_popularity):
     base_url = "https://api.spotify.com/v1/recommendations"
     headers = {"Authorization": f"Bearer {token}"}
 
-    genres = get_artist_genres(seed_artist_id, token)
-    genre_seed = genres[0] if genres else None
-
-    # First try: track + artist + genre
+    # Primary: artist + genre
     params = {
         "limit": 5,
-        "min_popularity": 5,
-        "max_popularity": 65,
-        "seed_tracks": seed_track_id,
+        "min_popularity": min_popularity,
+        "max_popularity": max_popularity,
         "seed_artists": seed_artist_id
     }
     if genre_seed:
@@ -100,29 +90,16 @@ def get_recommendations(seed_track_id, seed_artist_id, token):
     if r.status_code == 200 and r.json().get("tracks"):
         return r.json().get("tracks")
 
-    # Fallback: artist + genre
-    if genre_seed:
-        fallback_params = {
-            "limit": 5,
-            "min_popularity": 5,
-            "max_popularity": 70,
-            "seed_artists": seed_artist_id,
-            "seed_genres": genre_seed
-        }
-        r2 = requests.get(base_url, headers=headers, params=fallback_params)
-        if r2.status_code == 200 and r2.json().get("tracks"):
-            return r2.json().get("tracks")
-
-    # Final fallback: artist only
+    # Fallback: artist only
     fallback_params = {
         "limit": 5,
-        "min_popularity": 5,
-        "max_popularity": 70,
-        "seed_artists": seed_artist_id
+        "seed_artists": seed_artist_id,
+        "min_popularity": min_popularity,
+        "max_popularity": max_popularity
     }
-    r3 = requests.get(base_url, headers=headers, params=fallback_params)
-    if r3.status_code == 200:
-        return r3.json().get("tracks", [])
+    r2 = requests.get(base_url, headers=headers, params=fallback_params)
+    if r2.status_code == 200:
+        return r2.json().get("tracks", [])
 
     return []
 
@@ -135,6 +112,10 @@ st.subheader("Find obscure Spotify songs that sound like your favorite track.")
 song = st.text_input("Enter song title:")
 artist = st.text_input("Enter artist name:")
 
+with st.expander("🎚️ Customize Search"):
+    min_pop = st.slider("Minimum Popularity", 0, 100, 5)
+    max_pop = st.slider("Maximum Popularity", 0, 100, 70)
+
 if st.button("Find Obscure Songs"):
     if song and artist:
         with st.spinner("🎵 Searching Spotify..."):
@@ -146,15 +127,22 @@ if st.button("Find Obscure Songs"):
                 st.stop()
 
             st.success(f"Found: {track['track_name']} by {track['artist_name']}")
+            genre_seed = None
+            try:
+                genres = get_artist_genres(track["artist_id"], token)
+                if genres:
+                    genre_seed = genres[0]
+            except:
+                pass
 
             try:
-                recommendations = get_recommendations(track["track_id"], track["artist_id"], token)
-            except Exception as e:
+                recommendations = get_recommendations(track["artist_id"], genre_seed, token, min_pop, max_pop)
+            except Exception:
                 st.error("Something went wrong while getting recommendations.")
                 st.stop()
 
             if not recommendations:
-                st.warning("😕 Spotify couldn't find similar obscure songs for that track. Try a different one.")
+                st.warning("😕 Spotify couldn't find similar obscure songs for that track. Try adjusting popularity range.")
             else:
                 st.write("### 🔍 You might like:")
                 for rec in recommendations:
@@ -173,3 +161,4 @@ if st.button("Find Obscure Songs"):
                     st.markdown("---")
     else:
         st.info("👈 Please enter both a song title and an artist name to begin.")
+
