@@ -5,8 +5,8 @@ import base64
 # -----------------------
 # CONFIGURATION
 # -----------------------
-CLIENT_ID = "2fd09035ff5548a09b2fb8150648a824"        # 👈 Replace this
-CLIENT_SECRET = "8450f8417aff4816bef7c3c8cd129fa4"  # 👈 Replace this
+CLIENT_ID = "your_spotify_client_id"        # 👈 Replace this
+CLIENT_SECRET = "your_spotify_client_secret"  # 👈 Replace this
 
 # -----------------------
 # AUTHENTICATE WITH SPOTIFY
@@ -62,7 +62,6 @@ def search_track(song, artist, token):
     except Exception:
         return None
 
-
 # -----------------------
 # GET RECOMMENDATIONS
 # -----------------------
@@ -86,7 +85,6 @@ def get_recommendations(seed_track_id, seed_artist_id, token):
     except Exception as e:
         return []
 
-
 # -----------------------
 # STREAMLIT APP
 # -----------------------
@@ -106,10 +104,10 @@ if st.button("Find Obscure Songs"):
                 st.error("⚠️ Could not find that track. Double-check the spelling and try again.")
                 st.stop()
 
-            st.success(f"Found: {track['name']} by {track['artists'][0]['name']}")
+            st.success(f"Found: {track['track_name']} by {track['artist_name']}")
 
             try:
-                recommendations = get_recommendations(track['id'], token)
+                recommendations = get_recommendations(track["track_id"], track["artist_id"], token)
             except Exception as e:
                 st.error("Something went wrong while getting recommendations. Try another song or check your network.")
                 st.stop()
