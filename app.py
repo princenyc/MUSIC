@@ -5,8 +5,8 @@ import base64
 # -----------------------
 # CONFIGURATION
 # -----------------------
-CLIENT_ID = "2fd09035ff5548a09b2fb8150648a824"
-CLIENT_SECRET = "8450f8417aff4816bef7c3c8cd129fa4"
+CLIENT_ID = "2fd09035ff5548a09b2fb8150648a824"  # ← REPLACE THIS
+CLIENT_SECRET = "8450f8417aff4816bef7c3c8cd129fa4"  # ← REPLACE THIS
 
 # -----------------------
 # AUTHENTICATE WITH SPOTIFY
@@ -35,29 +35,28 @@ def get_spotify_token():
 # -----------------------
 def search_track(song, artist, token):
     query = f"track:{song} artist:{artist}"
-    url = f"https://api.spotify.com/v1/search?q={query}&type=track&limit=1"
-
+    url = f"https://api.spotify.com/v1/search"
     headers = {
         "Authorization": f"Bearer {token}"
     }
+    params = {
+        "q": query,
+        "type": "track",
+        "limit": 1
+    }
 
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=headers, params=params)
     items = r.json().get("tracks", {}).get("items")
-    if items:
-        return items[0]
-    else:
-        return None
-st.write("Spotify raw response:", r.text)
+    return items[0] if items else None
 
 # -----------------------
 # GET RECOMMENDATIONS
 # -----------------------
 def get_recommendations(seed_track_id, token):
-    url = f"https://api.spotify.com/v1/recommendations"
+    url = "https://api.spotify.com/v1/recommendations"
     headers = {
         "Authorization": f"Bearer {token}"
     }
-
     params = {
         "seed_tracks": seed_track_id,
         "limit": 5,
@@ -68,13 +67,9 @@ def get_recommendations(seed_track_id, token):
     try:
         response = requests.get(url, headers=headers, params=params)
         response.raise_for_status()
+        st.code(response.text, language="json")  # TEMPORARY DEBUGGING
+        return response.json().get("tracks", [])
 
-        # Show raw response temporarily for debugging
-        st.code(response.text, language="json")
-
-        data = response.json()
-        return data.get("tracks", [])
-    
     except requests.exceptions.HTTPError as e:
         st.error(f"HTTP error from Spotify: {e}")
         st.stop()
@@ -89,35 +84,34 @@ def get_recommendations(seed_track_id, token):
 # STREAMLIT APP
 # -----------------------
 st.title("🎧 Obscure Song Finder")
-st.subheader("Find obscure tracks that sound like your favorite song.")
+st.subheader("Find obscure Spotify tracks that sound like your favorite song.")
 
 song = st.text_input("Enter song title:")
 artist = st.text_input("Enter artist name:")
 
 if st.button("Find Obscure Songs"):
     if song and artist:
-        with st.spinner("Contacting Spotify..."):
+        with st.spinner("🎵 Searching Spotify..."):
             token = get_spotify_token()
-            original_track = search_track(song, artist, token)
+            track = search_track(song, artist, token)
 
-            if original_track:
-                st.success(f"Found: {original_track['name']} by {original_track['artists'][0]['name']}")
+            if track:
+                st.success(f"Found: {track['name']} by {track['artists'][0]['name']}")
+                recommendations = get_recommendations(track['id'], token)
 
-                recommendations = get_recommendations(original_track['id'], token)
-                st.write("### 🎶 You might like:")
-
+                st.write("### 🔍 You might like:")
                 for rec in recommendations:
-                    rec_name = rec['name']
-                    rec_artist = rec['artists'][0]['name']
+                    name = rec['name']
+                    artist_name = rec['artists'][0]['name']
                     link = rec['external_urls']['spotify']
                     img = rec['album']['images'][0]['url'] if rec['album']['images'] else None
 
                     if img:
                         st.image(img, width=200)
-                    st.markdown(f"**{rec_name}** by *{rec_artist}*")
+                    st.markdown(f"**{name}** by *{artist_name}*")
                     st.markdown(f"[▶️ Listen on Spotify]({link})")
                     st.markdown("---")
             else:
-                st.error("Could not find that track. Check your spelling.")
+                st.error("⚠️ Couldn’t find that track. Double-check the spelling.")
     else:
-        st.warning("Please enter both song and artist name.")
+        st.warning("Please enter both song title and artist name.")
