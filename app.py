@@ -6,7 +6,7 @@ import openai
 # -----------------------
 from openai import OpenAI
 
-client = OpenAI(api_key="your_openai_api_key")  # 👈 Replace key
+client = OpenAI(api_key="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")  # 👈 Replace key
 
 def get_song_recommendations(song, artist):
     prompt = f"""
