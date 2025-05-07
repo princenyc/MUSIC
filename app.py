@@ -1,57 +1,61 @@
 import streamlit as st
-import openai
+import requests
 import os
 
 # -----------------------
-# Load API Key (from Streamlit Secrets)
+# Last.fm API setup
 # -----------------------
-openai.api_key = os.getenv("OPENAI_API_KEY")
+API_KEY = os.getenv("LASTFM_API_KEY")  # Put this in Streamlit secrets
 
 # -----------------------
-# Music Recommendation Function
+# Get similar tracks from Last.fm
 # -----------------------
-def get_song_recommendations(song, artist):
-    prompt = f"""
-    I love the song "{song}" by {artist}.
-    Please recommend 2–3 obscure or underrated songs from lesser-known artists that sound similar in style, mood, and energy.
-    For each, include:
-    - Song title
-    - Artist name
-    - A 1-sentence reason it's a good match
-    - A Spotify or YouTube search link
-
-    Format your answer in markdown. Keep it short and clear.
-    """
+def get_similar_tracks(artist, track):
+    url = "http://ws.audioscrobbler.com/2.0/"
+    params = {
+        "method": "track.getsimilar",
+        "artist": artist,
+        "track": track,
+        "api_key": API_KEY,
+        "format": "json",
+        "limit": 10
+    }
 
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You're a music recommendation engine who loves obscure tracks."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.8,
-            max_tokens=500
-        )
-
-        return response["choices"][0]["message"]["content"]
+        res = requests.get(url, params=params)
+        res.raise_for_status()
+        return res.json().get("similartracks", {}).get("track", [])
     except Exception as e:
         return f"❌ Error: {e}"
 
 # -----------------------
-# Streamlit UI
+# Streamlit App UI
 # -----------------------
-st.title("🎧 Obscure Song Finder (OpenAI v0.28)")
-st.subheader("Enter a song and artist to discover similar obscure tracks.")
+st.title("🎧 Obscure Song Finder (Last.fm Edition)")
+st.subheader("Discover lesser-known songs similar to your favorites.")
 
 song = st.text_input("Enter song title:")
 artist = st.text_input("Enter artist name:")
 
 if st.button("Find Obscure Songs"):
     if song and artist:
-        with st.spinner("🧠 Digging through the record crates..."):
-            result = get_song_recommendations(song, artist)
-        st.markdown("### 🎵 Recommendations")
-        st.markdown(result)
+        with st.spinner("🔍 Searching Last.fm..."):
+            results = get_similar_tracks(artist, song)
+
+        if isinstance(results, str):
+            st.error(results)
+        elif not results:
+            st.warning("😕 No similar obscure songs found.")
+        else:
+            st.markdown("### 🎵 Recommendations")
+            for track in results:
+                title = track["name"]
+                artist_name = track["artist"]["name"]
+                url = f"https://www.youtube.com/results?search_query={title.replace(' ', '+')}+{artist_name.replace(' ', '+')}"
+                match_score = round(float(track.get("match", 0)) * 100)
+
+                st.markdown(f"**{title}** by *{artist_name}* — Match score: {match_score}%")
+                st.markdown(f"[▶️ Search on YouTube]({url})")
+                st.markdown("---")
     else:
-        st.warning("Please enter both a song title and artist name.")
+        st.info("👈 Please enter both a song and artist to begin.")
