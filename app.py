@@ -4,11 +4,10 @@ import openai
 # -----------------------
 # CONFIGURATION
 # -----------------------
-openai.api_key = "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"  # 👈 Replace this
+from openai import OpenAI
 
-# -----------------------
-# OPENAI FUNCTION
-# -----------------------
+client = OpenAI(api_key="your_openai_api_key")  # 👈 Replace key
+
 def get_song_recommendations(song, artist):
     prompt = f"""
     I love the song "{song}" by {artist}. 
@@ -23,7 +22,7 @@ def get_song_recommendations(song, artist):
     """
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You're a music recommendation engine who loves obscure tracks."},
@@ -33,10 +32,10 @@ def get_song_recommendations(song, artist):
             max_tokens=500
         )
 
-        reply = response["choices"][0]["message"]["content"]
-        return reply
+        return response.choices[0].message.content
     except Exception as e:
         return f"❌ Error: {e}"
+
 
 # -----------------------
 # STREAMLIT APP
