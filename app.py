@@ -1,12 +1,12 @@
-import streamlit as st
+iimport streamlit as st
 import requests
 import base64
 
 # -----------------------
 # CONFIGURATION
 # -----------------------
-CLIENT_ID = "2fd09035ff5548a09b2fb8150648a824"        # 👈 Replace this
-CLIENT_SECRET = "8450f8417aff4816bef7c3c8cd129fa4"  # 👈 Replace this
+CLIENT_ID = "your_spotify_client_id"        # 👈 Replace this
+CLIENT_SECRET = "your_spotify_client_secret"  # 👈 Replace this
 
 # -----------------------
 # AUTHENTICATE WITH SPOTIFY
@@ -63,27 +63,68 @@ def search_track(song, artist, token):
         return None
 
 # -----------------------
-# GET RECOMMENDATIONS
+# GET GENRES FOR ARTIST
+# -----------------------
+def get_artist_genres(artist_id, token):
+    url = f"https://api.spotify.com/v1/artists/{artist_id}"
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        r = requests.get(url, headers=headers)
+        r.raise_for_status()
+        return r.json().get("genres", [])
+    except Exception:
+        return []
+
+# -----------------------
+# GET SMART RECOMMENDATIONS
 # -----------------------
 def get_recommendations(seed_track_id, seed_artist_id, token):
-    url = "https://api.spotify.com/v1/recommendations"
-    headers = {
-        "Authorization": f"Bearer {token}"
-    }
-    params = {
-        "seed_tracks": seed_track_id,
-        "seed_artists": seed_artist_id,
-        "limit": 5,
-        "min_popularity": 10,
-        "max_popularity": 40
-    }
+    base_url = "https://api.spotify.com/v1/recommendations"
+    headers = {"Authorization": f"Bearer {token}"}
 
-    try:
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
-        return response.json().get("tracks", [])
-    except Exception as e:
-        return []
+    genres = get_artist_genres(seed_artist_id, token)
+    genre_seed = genres[0] if genres else None
+
+    # First try: track + artist + genre
+    params = {
+        "limit": 5,
+        "min_popularity": 5,
+        "max_popularity": 65,
+        "seed_tracks": seed_track_id,
+        "seed_artists": seed_artist_id
+    }
+    if genre_seed:
+        params["seed_genres"] = genre_seed
+
+    r = requests.get(base_url, headers=headers, params=params)
+    if r.status_code == 200 and r.json().get("tracks"):
+        return r.json().get("tracks")
+
+    # Fallback: artist + genre
+    if genre_seed:
+        fallback_params = {
+            "limit": 5,
+            "min_popularity": 5,
+            "max_popularity": 70,
+            "seed_artists": seed_artist_id,
+            "seed_genres": genre_seed
+        }
+        r2 = requests.get(base_url, headers=headers, params=fallback_params)
+        if r2.status_code == 200 and r2.json().get("tracks"):
+            return r2.json().get("tracks")
+
+    # Final fallback: artist only
+    fallback_params = {
+        "limit": 5,
+        "min_popularity": 5,
+        "max_popularity": 70,
+        "seed_artists": seed_artist_id
+    }
+    r3 = requests.get(base_url, headers=headers, params=fallback_params)
+    if r3.status_code == 200:
+        return r3.json().get("tracks", [])
+
+    return []
 
 # -----------------------
 # STREAMLIT APP
@@ -109,7 +150,7 @@ if st.button("Find Obscure Songs"):
             try:
                 recommendations = get_recommendations(track["track_id"], track["artist_id"], token)
             except Exception as e:
-                st.error("Something went wrong while getting recommendations. Try another song or check your network.")
+                st.error("Something went wrong while getting recommendations.")
                 st.stop()
 
             if not recommendations:
@@ -132,4 +173,3 @@ if st.button("Find Obscure Songs"):
                     st.markdown("---")
     else:
         st.info("👈 Please enter both a song title and an artist name to begin.")
-
