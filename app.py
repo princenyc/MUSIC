@@ -22,9 +22,13 @@ def get_spotify_token():
         "grant_type": "client_credentials"
     }
 
-    r = requests.post(auth_url, headers=headers, data=data)
-    token = r.json().get("access_token")
-    return token
+    try:
+        r = requests.post(auth_url, headers=headers, data=data)
+        r.raise_for_status()
+        return r.json().get("access_token")
+    except Exception as e:
+        st.error("❌ Failed to get Spotify token. Check your Client ID and Secret.")
+        st.stop()
 
 # -----------------------
 # SEARCH FOR INPUT SONG
@@ -49,13 +53,23 @@ def search_track(song, artist, token):
 # -----------------------
 def get_recommendations(seed_track_id, token):
     url = f"https://api.spotify.com/v1/recommendations?seed_tracks={seed_track_id}&limit=5&min_popularity=10&max_popularity=40"
-
     headers = {
         "Authorization": f"Bearer {token}"
     }
 
     r = requests.get(url, headers=headers)
-    return r.json().get("tracks", [])
+
+    try:
+        r.raise_for_status()
+        data = r.json()
+        return data.get("tracks", [])
+    except requests.exceptions.RequestException as e:
+        st.error(f"❌ Spotify request error: {e}")
+        st.stop()
+    except ValueError:
+        st.error("❌ Spotify returned something that's not JSON. Try again later or check your token.")
+        st.stop()
+
 
 # -----------------------
 # STREAMLIT APP
