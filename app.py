@@ -58,10 +58,10 @@ def get_recommendations(seed_track_id, token):
         "Authorization": f"Bearer {token}"
     }
 
-    r = requests.get(url, headers=headers)
-
     try:
+        r = requests.get(url, headers=headers)
         r.raise_for_status()
+        st.write("Spotify raw response:", r.text)  # Debugging line
         data = r.json()
         return data.get("tracks", [])
     except requests.exceptions.RequestException as e:
@@ -70,7 +70,6 @@ def get_recommendations(seed_track_id, token):
     except ValueError:
         st.error("❌ Spotify returned something that's not JSON. Try again later or check your token.")
         st.stop()
-
 
 # -----------------------
 # STREAMLIT APP
