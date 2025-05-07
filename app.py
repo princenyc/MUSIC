@@ -49,20 +49,31 @@ def search_track(song, artist, token):
         r = requests.get(url, headers=headers, params=params)
         r.raise_for_status()
         items = r.json().get("tracks", {}).get("items")
-        return items[0] if items else None
+        if not items:
+            return None
+        track = items[0]
+        return {
+            "track_id": track["id"],
+            "artist_id": track["artists"][0]["id"],
+            "track_name": track["name"],
+            "artist_name": track["artists"][0]["name"],
+            "album_image": track["album"]["images"][0]["url"] if track["album"]["images"] else None
+        }
     except Exception:
         return None
+
 
 # -----------------------
 # GET RECOMMENDATIONS
 # -----------------------
-def get_recommendations(seed_track_id, token):
+def get_recommendations(seed_track_id, seed_artist_id, token):
     url = "https://api.spotify.com/v1/recommendations"
     headers = {
         "Authorization": f"Bearer {token}"
     }
     params = {
         "seed_tracks": seed_track_id,
+        "seed_artists": seed_artist_id,
         "limit": 5,
         "min_popularity": 10,
         "max_popularity": 40
@@ -74,6 +85,7 @@ def get_recommendations(seed_track_id, token):
         return response.json().get("tracks", [])
     except Exception as e:
         return []
+
 
 # -----------------------
 # STREAMLIT APP
