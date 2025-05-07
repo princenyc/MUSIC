@@ -1,30 +1,30 @@
 import streamlit as st
+import openai
 import os
-from openai import OpenAI
 
 # -----------------------
-# INITIALIZE CLIENT
+# Load API Key (from Streamlit Secrets)
 # -----------------------
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # -----------------------
-# FUNCTION TO GET RECS
+# Music Recommendation Function
 # -----------------------
 def get_song_recommendations(song, artist):
     prompt = f"""
-    I love the song "{song}" by {artist}. 
+    I love the song "{song}" by {artist}.
     Please recommend 2–3 obscure or underrated songs from lesser-known artists that sound similar in style, mood, and energy.
     For each, include:
     - Song title
     - Artist name
-    - A 1-sentence reason it’s a good match
+    - A 1-sentence reason it's a good match
     - A Spotify or YouTube search link
 
     Format your answer in markdown. Keep it short and clear.
     """
 
     try:
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You're a music recommendation engine who loves obscure tracks."},
@@ -34,14 +34,14 @@ def get_song_recommendations(song, artist):
             max_tokens=500
         )
 
-        return response.choices[0].message.content
+        return response["choices"][0]["message"]["content"]
     except Exception as e:
         return f"❌ Error: {e}"
 
 # -----------------------
-# STREAMLIT APP
+# Streamlit UI
 # -----------------------
-st.title("🎧 Obscure Song Finder (OpenAI-Powered)")
+st.title("🎧 Obscure Song Finder (OpenAI v0.28)")
 st.subheader("Enter a song and artist to discover similar obscure tracks.")
 
 song = st.text_input("Enter song title:")
@@ -55,4 +55,3 @@ if st.button("Find Obscure Songs"):
         st.markdown(result)
     else:
         st.warning("Please enter both a song title and artist name.")
-
