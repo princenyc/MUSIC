@@ -1,13 +1,15 @@
 import streamlit as st
-import openai
-
-# -----------------------
-# CONFIGURATION
-# -----------------------
+import os
 from openai import OpenAI
 
-client = OpenAI(api_key="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")  # 👈 Replace key
+# -----------------------
+# LOAD API KEY FROM ENV
+# -----------------------
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# -----------------------
+# FUNCTION TO GET RECS
+# -----------------------
 def get_song_recommendations(song, artist):
     prompt = f"""
     I love the song "{song}" by {artist}. 
@@ -18,7 +20,7 @@ def get_song_recommendations(song, artist):
     - A 1-sentence reason it’s a good match
     - A Spotify or YouTube search link
 
-    Keep the list concise and markdown formatted.
+    Format your answer in markdown. Keep it short and clear.
     """
 
     try:
@@ -36,7 +38,6 @@ def get_song_recommendations(song, artist):
     except Exception as e:
         return f"❌ Error: {e}"
 
-
 # -----------------------
 # STREAMLIT APP
 # -----------------------
@@ -48,10 +49,9 @@ artist = st.text_input("Enter artist name:")
 
 if st.button("Find Obscure Songs"):
     if song and artist:
-        with st.spinner("🧠 Thinking like a record store nerd..."):
+        with st.spinner("🧠 Digging through the record crates..."):
             result = get_song_recommendations(song, artist)
         st.markdown("### 🎵 Recommendations")
         st.markdown(result)
     else:
         st.warning("Please enter both a song title and artist name.")
-
