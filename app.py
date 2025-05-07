@@ -53,22 +53,36 @@ st.write("Spotify raw response:", r.text)
 # GET RECOMMENDATIONS
 # -----------------------
 def get_recommendations(seed_track_id, token):
-    url = f"https://api.spotify.com/v1/recommendations?seed_tracks={seed_track_id}&limit=5&min_popularity=10&max_popularity=40"
+    url = f"https://api.spotify.com/v1/recommendations"
     headers = {
         "Authorization": f"Bearer {token}"
     }
 
+    params = {
+        "seed_tracks": seed_track_id,
+        "limit": 5,
+        "min_popularity": 10,
+        "max_popularity": 40
+    }
+
     try:
-        r = requests.get(url, headers=headers)
-        r.raise_for_status()
-        st.write("Spotify raw response:", r.text)  # Debugging line
-        data = r.json()
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+
+        # Show raw response temporarily for debugging
+        st.code(response.text, language="json")
+
+        data = response.json()
         return data.get("tracks", [])
-    except requests.exceptions.RequestException as e:
-        st.error(f"❌ Spotify request error: {e}")
+    
+    except requests.exceptions.HTTPError as e:
+        st.error(f"HTTP error from Spotify: {e}")
         st.stop()
-    except ValueError:
-        st.error("❌ Spotify returned something that's not JSON. Try again later or check your token.")
+    except requests.exceptions.RequestException as e:
+        st.error(f"Network error from Spotify: {e}")
+        st.stop()
+    except Exception as e:
+        st.error(f"Unexpected error: {e}")
         st.stop()
 
 # -----------------------
