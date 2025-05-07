@@ -5,8 +5,8 @@ import base64
 # -----------------------
 # CONFIGURATION
 # -----------------------
-CLIENT_ID = "your_spotify_client_id"        # 👈 Replace this
-CLIENT_SECRET = "your_spotify_client_secret"  # 👈 Replace this
+CLIENT_ID = "2fd09035ff5548a09b2fb8150648a824"        # 👈 Replace this
+CLIENT_SECRET = "8450f8417aff4816bef7c3c8cd129fa4"  # 👈 Replace this
 
 # -----------------------
 # AUTHENTICATE WITH SPOTIFY
