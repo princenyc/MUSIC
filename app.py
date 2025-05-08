@@ -2,27 +2,20 @@ import streamlit as st
 import requests
 from urllib.parse import quote
 
-# Last.fm API key
-API_KEY = '60a80eb83b68b7487371c43ab7d232fa'
+API_KEY = 'your_lastfm_api_key'
 
 def get_similar_artists(artist):
     url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getsimilar&artist={quote(artist)}&api_key={API_KEY}&format=json&limit=5"
     response = requests.get(url)
     data = response.json()
 
-    if 'similarartists' not in data or 'artist' not in data['similarartists']:
-        return []
-    
     similar = []
-    for a in data['similarartists']['artist']:
-        match_score = round(float(a.get('match', 0)) * 100, 1)
-        similar.append({
-            'name': a['name'],
-            'url': a['url'],
-            'image': a['image'][-1]['#text'] if a['image'] else '',
-            'match_score': match_score,
-            'youtube_url': f"https://www.youtube.com/results?search_query={quote(a['name'])}"
-        })
+    if 'similarartists' in data and 'artist' in data['similarartists']:
+        for a in data['similarartists']['artist']:
+            similar.append({
+                'name': a['name'],
+                'match_score': round(float(a.get('match', 0)) * 100, 1)
+            })
     return similar
 
 def get_artist_info(artist):
@@ -30,40 +23,63 @@ def get_artist_info(artist):
     response = requests.get(url)
     data = response.json()
     if 'artist' in data:
-        img = data['artist']['image'][-1]['#text'] if data['artist']['image'] else ''
-        bio = data['artist']['bio']['summary']
-        return img, bio
+        image = data['artist']['image'][-1]['#text'] if data['artist']['image'] else ''
+        bio = data['artist']['bio']['summary'].split('<a')[0].strip()
+        return image, bio
     return '', 'No bio available.'
 
+def get_top_tracks(artist, max_tracks=1):
+    url = f"http://ws.audioscrobbler.com/2.0/?method=artist.gettoptracks&artist={quote(artist)}&api_key={API_KEY}&format=json&limit={max_tracks}"
+    response = requests.get(url)
+    data = response.json()
+    
+    tracks = []
+    if 'toptracks' in data and 'track' in data['toptracks']:
+        for t in data['toptracks']['track']:
+            title = t['name']
+            tracks.append({
+                'title': title,
+                'youtube_url': f"https://www.youtube.com/results?search_query={quote(title + ' ' + artist)}"
+            })
+    return tracks
+
 # ——— Streamlit UI ——— #
-st.set_page_config(page_title="🎶 Obscure Song Finder", layout="centered")
-st.title("🎶 Obscure Song Finder (via Last.fm)")
-st.write("Find lesser-known artists who match the vibe of your favorite.")
+st.set_page_config(page_title="🎶 Obscure Music Recommender", layout="centered")
+st.title("🎶 Obscure Music Recommender (via Last.fm)")
+st.write("Enter an artist to discover similar artists, their songs, trivia, and vibes.")
 
 artist_input = st.text_input("🎤 Enter Artist Name")
 
-if st.button("🔍 Find Similar Artists"):
+if st.button("🔍 Find Obscure Songs"):
     if not artist_input:
         st.error("Please enter an artist name.")
     else:
-        with st.spinner("Searching for matches..."):
-            matches = get_similar_artists(artist_input)
-            artist_img, artist_bio = get_artist_info(artist_input)
+        with st.spinner("Finding deep cuts and fun facts..."):
+            similar_artists = get_similar_artists(artist_input)
+            original_image, original_bio = get_artist_info(artist_input)
 
-        if matches:
-            st.markdown(f"### 🔎 Artists similar to **{artist_input}**:")
-            for m in matches:
-                st.image(m['image'] or "https://via.placeholder.com/150", width=160)
-                st.markdown(f"**{m['name']}**")
-                st.markdown(f"[🔗 View on Last.fm]({m['url']})")
-                st.markdown(f"[📺 YouTube Search]({m['youtube_url']})")
-                st.slider("🎚️ Match Score", 0, 100, int(m['match_score']), disabled=True)
+        if similar_artists:
+            st.markdown(f"## 🔎 Artists similar to **{artist_input}**")
+
+            for artist in similar_artists:
+                image, trivia = get_artist_info(artist['name'])
+                top_tracks = get_top_tracks(artist['name'], max_tracks=2)
+
+                # Artist Header
+                st.image(image or "https://via.placeholder.com/150", width=160)
+                st.markdown(f"### 🎤 {artist['name']}")
+                st.slider("🎚️ Match Score", 0, 100, int(artist['match_score']), disabled=True)
+                st.caption(f"🧠 Trivia: {trivia[:250]}...")  # 1-line trivia
+
+                for t in top_tracks:
+                    st.markdown(f"🎵 **{t['title']}** — [📺 YouTube Search]({t['youtube_url']})")
+
                 st.markdown("---")
-            
+
             st.subheader(f"🧠 About {artist_input}")
-            if artist_img:
-                st.image(artist_img, width=160)
-            st.write(artist_bio)
+            if original_image:
+                st.image(original_image, width=160)
+            st.write(original_bio)
         else:
-            st.warning("No similar artists found. Try a different name.")
+            st.warning("No similar artists found. Try another name.")
 
