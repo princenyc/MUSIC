@@ -1,95 +1,66 @@
 import streamlit as st
 import requests
-import os
+from urllib.parse import quote
 
-# -----------------------
-# API Config
-# -----------------------
-API_KEY = os.getenv("LASTFM_API_KEY")
+# Replace with your Last.fm API key
+API_KEY = 'your_lastfm_api_key'
 
-# -----------------------
-# Get similar tracks from Last.fm
-# -----------------------
 def get_similar_tracks(artist, track):
-    url = "http://ws.audioscrobbler.com/2.0/"
-    params = {
-        "method": "track.getsimilar",
-        "artist": artist,
-        "track": track,
-        "api_key": API_KEY,
-        "format": "json",
-        "limit": 10
-    }
-
-    try:
-        res = requests.get(url, params=params)
-        res.raise_for_status()
-        return res.json().get("similartracks", {}).get("track", [])
-    except Exception as e:
+    url = f"http://ws.audioscrobbler.com/2.0/?method=track.getsimilar&artist={quote(artist)}&track={quote(track)}&api_key={API_KEY}&format=json&limit=5"
+    response = requests.get(url)
+    data = response.json()
+    
+    if 'similartracks' not in data or 'track' not in data['similartracks']:
         return []
+    
+    similar = []
+    for t in data['similartracks']['track']:
+        match_score = round(float(t.get('match', 0)) * 100, 1)  # Last.fm gives 0–1 match
+        similar.append({
+            'name': t['name'],
+            'artist': t['artist']['name'],
+            'url': t['url'],
+            'image': t['image'][-1]['#text'] if t['image'] else '',
+            'match_score': match_score,
+            'youtube': f"https://www.youtube.com/results?search_query={quote(t['name'] + ' ' + t['artist']['name'])}"
+        })
+    return similar
 
-# -----------------------
-# Get artist info (bio + image)
-# -----------------------
-def get_artist_info(artist_name):
-    url = "http://ws.audioscrobbler.com/2.0/"
-    params = {
-        "method": "artist.getinfo",
-        "artist": artist_name,
-        "api_key": API_KEY,
-        "format": "json"
-    }
+def get_artist_bio(artist):
+    url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist={quote(artist)}&api_key={API_KEY}&format=json"
+    response = requests.get(url)
+    data = response.json()
+    if 'artist' in data and 'bio' in data['artist']:
+        return data['artist']['bio']['summary']
+    return "No bio available."
 
-    try:
-        res = requests.get(url, params=params)
-        res.raise_for_status()
-        data = res.json().get("artist", {})
-        summary = data.get("bio", {}).get("summary", "No bio available.")
-        image = next((img["#text"] for img in data.get("image", []) if img["size"] == "extralarge"), "")
-        return summary.split("<a")[0].strip(), image
-    except:
-        return "No bio available.", ""
+# Streamlit UI
+st.title("🎧 Obscure Song Recommender (Last.fm)")
+st.write("Find songs that sound like your favorite but aren't on everyone's playlist.")
 
-# -----------------------
-# Streamlit App
-# -----------------------
-st.title("🎧 Obscure Song Finder (Last.fm Edition)")
-st.subheader("Find lesser-known songs similar to your favorites.")
+artist_input = st.text_input("Enter Artist Name")
+song_input = st.text_input("Enter Song Name")
 
-st.markdown("**ℹ️ Match Score** reflects how closely a recommended track resembles the original song, based on Last.fm's listener data.")
+if st.button("🔍 Find Obscure Songs"):
+    if artist_input and song_input:
+        similar_tracks = get_similar_tracks(artist_input, song_input)
 
-song = st.text_input("Enter song title:")
-artist = st.text_input("Enter artist name:")
-min_score = st.slider("Minimum Match Score", 0, 100, 60)
-
-if st.button("Find Obscure Songs"):
-    if song and artist:
-        with st.spinner("🔍 Searching..."):
-            results = get_similar_tracks(artist, song)
-
-        if not results:
-            st.warning("😕 No similar obscure songs found.")
+        if similar_tracks:
+            st.success(f"Found similar songs to **{song_input}** by **{artist_input}**:")
+            for track in similar_tracks:
+                st.image(track['image'] or "https://via.placeholder.com/150", width=150)
+                st.markdown(f"**{track['name']}** by *{track['artist']}*")
+                st.markdown(f"[🎵 Listen on Last.fm]({track['url']})")
+                st.markdown(f"[📺 YouTube Search]({track['youtube']})")
+                st.slider("Match Score", 0, 100, int(track['match_score']), disabled=True)
+                st.markdown("—")
+            
+            st.subheader("🎤 About the Artist")
+            bio = get_artist_bio(artist_input)
+            st.write(bio)
         else:
-            filtered = [track for track in results if float(track.get("match", 0)) * 100 >= min_score]
-
-            if not filtered:
-                st.info(f"No tracks found with match score ≥ {min_score}%. Try lowering the threshold.")
-            else:
-                st.markdown("### 🔎 Recommendations")
-                for track in filtered:
-                    title = track["name"]
-                    artist_name = track["artist"]["name"]
-                    score = round(float(track["match"]) * 100)
-                    yt_link = f"https://www.youtube.com/results?search_query={title.replace(' ', '+')}+{artist_name.replace(' ', '+')}"
-
-                    bio, image_url = get_artist_info(artist_name)
-
-                    st.markdown(f"**{title}** by *{artist_name}* — Match Score: `{score}%`")
-                    st.markdown(f"[▶️ Search on YouTube]({yt_link})")
-                    if image_url:
-                        st.image(image_url, width=150)
-                    st.markdown(f"📘 *{bio}*")
-                    st.markdown("---")
+            st.warning("No similar songs found. Try another track.")
     else:
-        st.info("👈 Please enter both a song and artist to begin.")
+        st.error("Please enter both artist and song.")
+
 
