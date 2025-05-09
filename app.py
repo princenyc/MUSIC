@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 from urllib.parse import quote
 
-API_KEY = '60a80eb83b68b7487371c43ab7d232fa'
+API_KEY ='60a80eb83b68b7487371c43ab7d232fa'
 
 def get_similar_tracks(artist, song, limit=5):
     url = f"http://ws.audioscrobbler.com/2.0/?method=track.getsimilar&artist={quote(artist)}&track={quote(song)}&api_key={API_KEY}&format=json&limit={limit}"
