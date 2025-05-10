@@ -1,12 +1,17 @@
 import streamlit as st
 import requests
 import random
+import os
+
+# Load your Google Books API Key from environment variables (recommended)
+GOOGLE_API_KEY = os.getenv("GOOGLE_BOOKS_API_KEY")  # Use secrets on Streamlit Cloud
 
 st.set_page_config(page_title="Book Vibe Matcher", layout="centered")
 
 st.title("📚 Book Vibe Matcher")
 st.write("Enter 3 books you love, and we’ll recommend a similar one.")
 
+# Input form
 with st.form("book_form"):
     book1 = st.text_input("Book #1", "The Stainless Steel Rat")
     book2 = st.text_input("Book #2", "Leonardo da Vinci")
@@ -19,7 +24,8 @@ def search_google_books(query):
         "q": query,
         "maxResults": 5,
         "printType": "books",
-        "projection": "lite"
+        "projection": "lite",
+        "key": GOOGLE_API_KEY
     }
     try:
         response = requests.get(base_url, params=params)
@@ -67,4 +73,4 @@ if submitted:
             if "infoLink" in info:
                 st.markdown(f"[More about this book →]({info['infoLink']})")
         else:
-            st.warning("Still no match! Try 3 more popular or slightly different titles?")
+            st.warning("Still no match! Try different titles or check your API key.")
