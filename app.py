@@ -7,56 +7,64 @@ st.set_page_config(page_title="Book Vibe Matcher", layout="centered")
 st.title("📚 Book Vibe Matcher")
 st.write("Enter 3 books you love, and we’ll recommend a similar one.")
 
-# Input form
 with st.form("book_form"):
-    book1 = st.text_input("Book #1")
-    book2 = st.text_input("Book #2")
-    book3 = st.text_input("Book #3")
+    book1 = st.text_input("Book #1", "The Stainless Steel Rat")
+    book2 = st.text_input("Book #2", "Leonardo da Vinci")
+    book3 = st.text_input("Book #3", "The 33 Strategies of War")
     submitted = st.form_submit_button("Find Me a Book")
 
 def search_google_books(query):
-    url = f"https://www.googleapis.com/books/v1/volumes?q={requests.utils.quote(query)}"
-    response = requests.get(url)
-    if response.status_code == 200:
-        results = response.json()
-        if "items" in results:
-            return results["items"]
-    return []
+    base_url = "https://www.googleapis.com/books/v1/volumes"
+    params = {
+        "q": query,
+        "maxResults": 5,
+        "printType": "books",
+        "projection": "lite"
+    }
+    try:
+        response = requests.get(base_url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("items", [])
+    except Exception as e:
+        st.error(f"API Error: {e}")
+        return []
 
 def recommend_book(book_titles):
     recommendations = []
     for title in book_titles:
-        books = search_google_books(title)
-        if books:
-            recommendations.extend(books)
-    
-    # Remove duplicates and shuffle
+        primary = search_google_books(f'intitle:{title}')
+        fallback = search_google_books(title)
+        results = primary + fallback
+        for book in results:
+            if "id" in book:
+                recommendations.append(book)
+
+    # Filter duplicates
     seen = set()
-    unique_recs = []
+    unique_books = []
     for book in recommendations:
-        book_id = book["id"]
-        if book_id not in seen:
-            seen.add(book_id)
-            unique_recs.append(book)
-    
-    # Pick a random one
-    if unique_recs:
-        return random.choice(unique_recs)
-    return None
+        if book["id"] not in seen:
+            seen.add(book["id"])
+            unique_books.append(book)
+
+    return random.choice(unique_books) if unique_books else None
 
 if submitted:
     with st.spinner("Searching for your next great read..."):
         titles = [book1, book2, book3]
-        recommended = recommend_book(titles)
-        
-        if recommended:
-            info = recommended["volumeInfo"]
-            st.subheader(info.get("title", "Unknown Title"))
+        rec = recommend_book(titles)
+
+        if rec:
+            info = rec["volumeInfo"]
+            st.subheader(info.get("title", "Untitled"))
             st.write(f"**Author(s):** {', '.join(info.get('authors', ['Unknown']))}")
             st.write(info.get("description", "No description available."))
+
             if "imageLinks" in info:
-                st.image(info["imageLinks"].get("thumbnail", ""), width=150)
+                st.image(info["imageLinks"].get("thumbnail"), width=160)
+
             if "infoLink" in info:
-                st.markdown(f"[More info →]({info['infoLink']})")
+                st.markdown(f"[More about this book →]({info['infoLink']})")
         else:
-            st.warning("Sorry, we couldn’t find a good recommendation.")
+            st.warning("Still no match! Try 3 more popular or slightly different titles?")
