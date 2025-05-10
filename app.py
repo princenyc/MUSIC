@@ -1,38 +1,62 @@
 import streamlit as st
 import requests
-from urllib.parse import quote
+import random
 
-API_KEY ='60a80eb83b68b7487371c43ab7d232fa'
+st.set_page_config(page_title="Book Vibe Matcher", layout="centered")
 
-def get_similar_tracks(artist, song, limit=5):
-    url = f"http://ws.audioscrobbler.com/2.0/?method=track.getsimilar&artist={quote(artist)}&track={quote(song)}&api_key={API_KEY}&format=json&limit={limit}"
+st.title("📚 Book Vibe Matcher")
+st.write("Enter 3 books you love, and we’ll recommend a similar one.")
+
+# Input form
+with st.form("book_form"):
+    book1 = st.text_input("Book #1")
+    book2 = st.text_input("Book #2")
+    book3 = st.text_input("Book #3")
+    submitted = st.form_submit_button("Find Me a Book")
+
+def search_google_books(query):
+    url = f"https://www.googleapis.com/books/v1/volumes?q={requests.utils.quote(query)}"
     response = requests.get(url)
-    data = response.json()
+    if response.status_code == 200:
+        results = response.json()
+        if "items" in results:
+            return results["items"]
+    return []
 
-    results = []
-    if 'similartracks' in data and 'track' in data['similartracks']:
-        for t in data['similartracks']['track']:
-            match_score = round(float(t.get('match', 0)) * 100, 1)
-            results.append({
-                'track_name': t['name'],
-                'artist_name': t['artist']['name'],
-                'match_score': match_score,
-                'lastfm_url': t['url'],
-                'youtube_url': f"https://www.youtube.com/results?search_query={quote(t['name'] + ' ' + t['artist']['name'])}"
-            })
-    return results
+def recommend_book(book_titles):
+    recommendations = []
+    for title in book_titles:
+        books = search_google_books(title)
+        if books:
+            recommendations.extend(books)
+    
+    # Remove duplicates and shuffle
+    seen = set()
+    unique_recs = []
+    for book in recommendations:
+        book_id = book["id"]
+        if book_id not in seen:
+            seen.add(book_id)
+            unique_recs.append(book)
+    
+    # Pick a random one
+    if unique_recs:
+        return random.choice(unique_recs)
+    return None
 
-def get_artist_info(artist):
-    url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist={quote(artist)}&api_key={API_KEY}&format=json"
-    response = requests.get(url)
-    data = response.json()
-    if 'artist' in data:
-        image = data['artist']['image'][-1]['#text'] if data['artist']['image'] else ''
-        bio = data['artist']['bio']['summary'].split('<a')[0].strip()
-        return image, bio
-    return '', 'No bio available.'
-
-# ——— Streamlit UI ——— #
-st.set_page_config(page_title="🎶 Obscure Song Finder", layout="centered")
-st.title("🎶 Obscure Song Finder")
-st.write("Enter an artist and a song to find obscure tracks that match the vibe.")
+if submitted:
+    with st.spinner("Searching for your next great read..."):
+        titles = [book1, book2, book3]
+        recommended = recommend_book(titles)
+        
+        if recommended:
+            info = recommended["volumeInfo"]
+            st.subheader(info.get("title", "Unknown Title"))
+            st.write(f"**Author(s):** {', '.join(info.get('authors', ['Unknown']))}")
+            st.write(info.get("description", "No description available."))
+            if "imageLinks" in info:
+                st.image(info["imageLinks"].get("thumbnail", ""), width=150)
+            if "infoLink" in info:
+                st.markdown(f"[More info →]({info['infoLink']})")
+        else:
+            st.warning("Sorry, we couldn’t find a good recommendation.")
