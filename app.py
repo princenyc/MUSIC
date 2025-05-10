@@ -4,7 +4,7 @@ import random
 import os
 
 # Load your Google Books API Key from environment variables (recommended)
-GOOGLE_API_KEY = os.getenv("AIzaSyBQzcVQW9A6izHvN3zRoUf4wa8OzwYQDp4")  # Use secrets on Streamlit Cloud
+GOOGLE_API_KEY = os.getenv("GOOGLE_BOOKS_API_KEY")  # Use secrets on Streamlit Cloud
 
 st.set_page_config(page_title="Book Vibe Matcher", layout="centered")
 
@@ -74,3 +74,4 @@ if submitted:
                 st.markdown(f"[More about this book →]({info['infoLink']})")
         else:
             st.warning("Still no match! Try different titles or check your API key.")
+
