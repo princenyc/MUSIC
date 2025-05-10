@@ -4,7 +4,8 @@ import random
 import os
 
 # Load your Google Books API Key from environment variables (recommended)
-GOOGLE_API_KEY = os.getenv("GOOGLE_BOOKS_API_KEY")  # Use secrets on Streamlit Cloud
+GOOGLE_API_KEY = "AIzaSyBQzcVQW9A6izHvN3zRoUf4wa8OzwYQDp4"
+  # Use secrets on Streamlit Cloud
 
 st.set_page_config(page_title="Book Vibe Matcher", layout="centered")
 
@@ -29,6 +30,8 @@ def search_google_books(query):
     }
     try:
         response = requests.get(base_url, params=params)
+        st.text(f"Requested: {response.url}")
+
         response.raise_for_status()
         data = response.json()
         return data.get("items", [])
